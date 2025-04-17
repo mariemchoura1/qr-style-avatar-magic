@@ -9,12 +9,30 @@ import { useNavigate } from 'react-router-dom';
 const QRScanner = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   
+  useEffect(() => {
+    // Clean up when component unmounts
+    return () => {
+      if (isScanning) {
+        stopScanner();
+      }
+    };
+  }, [isScanning]);
+  
   const startScanner = async () => {
     try {
+      setCameraError(null);
+      console.log("Starting camera...");
+      
+      // Check if browser supports getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Your browser doesn't support camera access");
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'environment',
@@ -23,25 +41,46 @@ const QRScanner = () => {
         } 
       });
       
+      console.log("Camera stream obtained:", stream);
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(err => console.error("Error playing video:", err));
-        setIsScanning(true);
-        setHasPermission(true);
+        console.log("Setting video source");
         
-        // Mock successful scan after a few seconds
-        setTimeout(() => {
-          if (isScanning) {
-            stopScanner();
-            mockSuccessfulScan();
+        // Make sure video plays with a promise handler
+        videoRef.current.onloadedmetadata = () => {
+          console.log("Video metadata loaded");
+          if (videoRef.current) {
+            videoRef.current.play()
+              .then(() => {
+                console.log("Video playing successfully");
+                setIsScanning(true);
+                setHasPermission(true);
+                
+                // Mock successful scan after a few seconds
+                setTimeout(() => {
+                  if (isScanning) {
+                    stopScanner();
+                    mockSuccessfulScan();
+                  }
+                }, 5000);
+              })
+              .catch(err => {
+                console.error("Error playing video:", err);
+                setCameraError("Failed to play camera feed: " + err.message);
+              });
           }
-        }, 5000);
+        };
+      } else {
+        console.error("Video reference is null");
+        setCameraError("Video element not available");
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
       setHasPermission(false);
+      setCameraError(error instanceof Error ? error.message : "Unknown camera error");
       toast({
-        title: "Camera access denied",
+        title: "Camera access failed",
         description: "Please allow camera access to scan QR codes.",
         variant: "destructive",
       });
@@ -49,9 +88,13 @@ const QRScanner = () => {
   };
   
   const stopScanner = () => {
+    console.log("Stopping scanner");
     if (videoRef.current && videoRef.current.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
+      tracks.forEach(track => {
+        console.log("Stopping track:", track.kind);
+        track.stop();
+      });
       videoRef.current.srcObject = null;
       setIsScanning(false);
     }
@@ -74,15 +117,6 @@ const QRScanner = () => {
     navigate('/upload-photo');
   };
   
-  // Clean up when component unmounts
-  useEffect(() => {
-    return () => {
-      if (isScanning) {
-        stopScanner();
-      }
-    };
-  }, [isScanning]);
-  
   return (
     <div className="flex flex-col items-center w-full animate-fade-in">
       <Card className="w-full max-w-md mb-4">
@@ -93,7 +127,8 @@ const QRScanner = () => {
                 <video 
                   ref={videoRef} 
                   autoPlay 
-                  playsInline 
+                  playsInline
+                  muted
                   className="w-full h-full object-cover"
                 />
                 {/* QR code alignment guides */}
@@ -120,12 +155,18 @@ const QRScanner = () => {
                 </div>
               </>
             ) : (
-              <div className="flex items-center justify-center h-full bg-gray-900">
+              <div className="flex items-center justify-center h-full bg-gray-900 text-center">
                 {hasPermission === false ? (
                   <div className="text-center p-4">
                     <CameraOff className="h-16 w-16 text-red-400 mx-auto mb-3" />
                     <p className="text-white">Camera access denied</p>
                     <p className="text-gray-400 text-sm mt-1">Please enable camera permissions in your browser settings</p>
+                  </div>
+                ) : cameraError ? (
+                  <div className="text-center p-4">
+                    <CameraOff className="h-16 w-16 text-red-400 mx-auto mb-3" />
+                    <p className="text-white">Camera error</p>
+                    <p className="text-gray-400 text-sm mt-1">{cameraError}</p>
                   </div>
                 ) : (
                   <div className="text-center p-4">
