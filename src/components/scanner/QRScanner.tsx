@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Scan, Camera, CameraOff } from 'lucide-react';
+import { Scan, Camera, CameraOff, Upload } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -11,11 +10,12 @@ const QRScanner = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  // Clean up when component unmounts
   useEffect(() => {
     return () => {
       if (isScanning) {
@@ -24,18 +24,15 @@ const QRScanner = () => {
     };
   }, [isScanning]);
   
-  // Function to start the QR scanner
   const startScanner = async () => {
     try {
       setCameraError(null);
       console.log("Starting camera...");
       
-      // Check if browser supports getUserMedia
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Your browser doesn't support camera access");
       }
       
-      // Request camera access
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'environment',
@@ -46,10 +43,8 @@ const QRScanner = () => {
       
       console.log("Camera stream obtained:", stream);
       
-      // Check if video ref is available
       if (!videoRef.current) {
         console.error("Video reference is null - waiting for DOM to update");
-        // Give React a chance to update the DOM
         setTimeout(() => {
           if (videoRef.current) {
             attachStreamToVideo(stream);
@@ -65,7 +60,6 @@ const QRScanner = () => {
     }
   };
   
-  // Helper function to attach stream to video
   const attachStreamToVideo = (stream: MediaStream) => {
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
@@ -74,14 +68,12 @@ const QRScanner = () => {
       videoRef.current.onloadedmetadata = () => {
         console.log("Video metadata loaded");
         if (videoRef.current) {
-          // Use play().catch to properly handle autoplay restrictions
           videoRef.current.play()
             .then(() => {
               console.log("Video playing successfully");
               setIsScanning(true);
               setHasPermission(true);
               
-              // Mock successful scan after a few seconds
               setTimeout(() => {
                 if (isScanning) {
                   stopScanner();
@@ -101,7 +93,6 @@ const QRScanner = () => {
     }
   };
   
-  // Helper function to handle camera errors
   const handleCameraError = (error: unknown) => {
     console.error('Error accessing camera:', error);
     setHasPermission(false);
@@ -114,7 +105,6 @@ const QRScanner = () => {
     });
   };
   
-  // Function to stop the scanner
   const stopScanner = () => {
     console.log("Stopping scanner");
     if (videoRef.current && videoRef.current.srcObject) {
@@ -128,22 +118,41 @@ const QRScanner = () => {
     }
   };
   
-  // Mock function for successful QR scan
   const mockSuccessfulScan = () => {
     toast({
       title: "QR Code Detected!",
       description: "Garment: Blue Denim Jacket",
     });
     
-    // Store garment info in localStorage
     localStorage.setItem('selectedGarment', JSON.stringify({
       id: 'denim-jacket-123',
       name: 'Blue Denim Jacket',
       image: 'https://images.unsplash.com/photo-1516257984-b1b4d707412e?q=80&w=2574&auto=format&fit=crop'
     }));
     
-    // Navigate to upload photo page
     navigate('/upload-photo');
+  };
+  
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const uploadedImageUrl = event.target?.result as string;
+        setUploadedImage(uploadedImage);
+        
+        setTimeout(() => {
+          mockSuccessfulScan();
+        }, 1000);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      toast({
+        title: "Invalid File",
+        description: "Please upload a valid image file.",
+        variant: "destructive"
+      });
+    }
   };
   
   return (
@@ -160,22 +169,14 @@ const QRScanner = () => {
                   muted
                   className="w-full h-full object-cover"
                 />
-                {/* QR code alignment guides */}
                 <div className="absolute inset-0 pointer-events-none">
-                  {/* Corner markers */}
                   <div className="absolute top-0 left-0 w-[40px] h-[40px] border-l-4 border-t-4 border-white opacity-80"></div>
                   <div className="absolute top-0 right-0 w-[40px] h-[40px] border-r-4 border-t-4 border-white opacity-80"></div>
                   <div className="absolute bottom-0 left-0 w-[40px] h-[40px] border-l-4 border-b-4 border-white opacity-80"></div>
                   <div className="absolute bottom-0 right-0 w-[40px] h-[40px] border-r-4 border-b-4 border-white opacity-80"></div>
-                  
-                  {/* Center alignment box */}
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] border-2 border-dashed border-white opacity-60 rounded-lg"></div>
-                  
-                  {/* Scanning animation */}
                   <div className="absolute top-0 left-0 right-0 h-1 bg-brand-purple animate-pulse"></div>
                 </div>
-                
-                {/* Scan status indicator */}
                 <div className="absolute bottom-0 left-0 right-0 bg-black/70 py-2 px-3 text-white text-sm">
                   <div className="flex items-center">
                     <div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
@@ -183,26 +184,19 @@ const QRScanner = () => {
                   </div>
                 </div>
               </>
+            ) : uploadedImage ? (
+              <img 
+                src={uploadedImage} 
+                alt="Uploaded QR Code" 
+                className="w-full h-full object-cover"
+              />
             ) : (
-              <div className="flex items-center justify-center h-full bg-gray-900 text-center">
-                {hasPermission === false ? (
-                  <div className="text-center p-4">
-                    <CameraOff className="h-16 w-16 text-red-400 mx-auto mb-3" />
-                    <p className="text-white">Camera access denied</p>
-                    <p className="text-gray-400 text-sm mt-1">Please enable camera permissions in your browser settings</p>
-                  </div>
-                ) : cameraError ? (
-                  <div className="text-center p-4">
-                    <CameraOff className="h-16 w-16 text-red-400 mx-auto mb-3" />
-                    <p className="text-white">Camera error</p>
-                    <p className="text-gray-400 text-sm mt-1">{cameraError}</p>
-                  </div>
-                ) : (
-                  <div className="text-center p-4">
-                    <Camera className="h-16 w-16 text-gray-400 mx-auto mb-3" />
-                    <p className="text-white">Press the button below to activate camera</p>
-                  </div>
-                )}
+              <div className="flex flex-col items-center justify-center h-full bg-gray-900 text-center p-4">
+                <Camera className="h-16 w-16 text-gray-400 mb-3" />
+                <p className="text-white">Scan or Upload QR Code</p>
+                <p className="text-gray-400 text-sm mt-1">
+                  Choose from camera scan or upload an image
+                </p>
               </div>
             )}
           </div>
@@ -213,15 +207,31 @@ const QRScanner = () => {
                 <CameraOff className="h-4 w-4 mr-2" /> Stop Scanner
               </Button>
             ) : (
-              <Button onClick={startScanner} className="w-full sm:w-auto mb-2">
-                <Scan className="h-4 w-4 mr-2" /> Start Scanner
-              </Button>
+              <div className="flex gap-3">
+                <Button onClick={startScanner} className="w-full sm:w-auto mb-2">
+                  <Scan className="h-4 w-4 mr-2" /> Start Camera Scan
+                </Button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleFileUpload}
+                />
+                <Button 
+                  variant="secondary" 
+                  onClick={() => fileInputRef.current?.click()} 
+                  className="w-full sm:w-auto mb-2"
+                >
+                  <Upload className="h-4 w-4 mr-2" /> Upload Image
+                </Button>
+              </div>
             )}
             
             <p className={`mt-2 text-sm ${isScanning ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
               {isScanning 
                 ? "Position the QR code within the box"
-                : "Scan any QR code on garment tags or displays"
+                : "Scan or upload a QR code on garment tags"
               }
             </p>
           </div>
