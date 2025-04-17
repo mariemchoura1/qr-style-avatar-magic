@@ -27,4 +27,5 @@ const Toaster = ({ ...props }: ToasterProps) => {
   );
 };
 
-export { Toaster, toast } from '@/hooks/use-toast';
+// Only export the Sonner Toaster component, not the toast function
+export { Toaster };

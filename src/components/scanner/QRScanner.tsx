@@ -15,10 +15,17 @@ const QRScanner = () => {
   
   const startScanner = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
+      });
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(err => console.error("Error playing video:", err));
         setIsScanning(true);
         setHasPermission(true);
         
@@ -28,7 +35,7 @@ const QRScanner = () => {
             stopScanner();
             mockSuccessfulScan();
           }
-        }, 3000);
+        }, 5000);
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
@@ -77,55 +84,92 @@ const QRScanner = () => {
   }, [isScanning]);
   
   return (
-    <Card className="w-full animate-fade-in">
-      <CardContent className="p-6 flex flex-col items-center">
-        <div className="relative w-full max-w-md aspect-square bg-gray-100 rounded-lg overflow-hidden mb-6">
-          {isScanning ? (
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              playsInline 
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full bg-gray-100">
-              {hasPermission === false ? (
-                <div className="text-center p-4">
-                  <CameraOff className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">Camera access denied</p>
+    <div className="flex flex-col items-center w-full animate-fade-in">
+      <Card className="w-full max-w-md mb-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="relative aspect-square w-full bg-black rounded-lg overflow-hidden mb-4">
+            {isScanning ? (
+              <>
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline 
+                  className="w-full h-full object-cover"
+                />
+                {/* QR code alignment guides */}
+                <div className="absolute inset-0 pointer-events-none">
+                  {/* Corner markers */}
+                  <div className="absolute top-0 left-0 w-[40px] h-[40px] border-l-4 border-t-4 border-white opacity-80"></div>
+                  <div className="absolute top-0 right-0 w-[40px] h-[40px] border-r-4 border-t-4 border-white opacity-80"></div>
+                  <div className="absolute bottom-0 left-0 w-[40px] h-[40px] border-l-4 border-b-4 border-white opacity-80"></div>
+                  <div className="absolute bottom-0 right-0 w-[40px] h-[40px] border-r-4 border-b-4 border-white opacity-80"></div>
+                  
+                  {/* Center alignment box */}
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] border-2 border-dashed border-white opacity-60 rounded-lg"></div>
+                  
+                  {/* Scanning animation */}
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-brand-purple animate-pulse"></div>
                 </div>
-              ) : (
-                <div className="text-center p-4">
-                  <Camera className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">Start scanner to detect QR codes</p>
+                
+                {/* Scan status indicator */}
+                <div className="absolute bottom-0 left-0 right-0 bg-black/70 py-2 px-3 text-white text-sm">
+                  <div className="flex items-center">
+                    <div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                    <span>Scanning for QR code...</span>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-full bg-gray-900">
+                {hasPermission === false ? (
+                  <div className="text-center p-4">
+                    <CameraOff className="h-16 w-16 text-red-400 mx-auto mb-3" />
+                    <p className="text-white">Camera access denied</p>
+                    <p className="text-gray-400 text-sm mt-1">Please enable camera permissions in your browser settings</p>
+                  </div>
+                ) : (
+                  <div className="text-center p-4">
+                    <Camera className="h-16 w-16 text-gray-400 mx-auto mb-3" />
+                    <p className="text-white">Press the button below to activate camera</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           
-          {isScanning && (
-            <>
-              <div className="absolute inset-0 border-2 border-brand-purple rounded-lg"></div>
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[60%] h-[60%] border-2 border-white rounded-md"></div>
-            </>
-          )}
+          <div className="flex flex-col items-center">
+            {isScanning ? (
+              <Button onClick={stopScanner} variant="outline" className="w-full sm:w-auto mb-2">
+                <CameraOff className="h-4 w-4 mr-2" /> Stop Scanner
+              </Button>
+            ) : (
+              <Button onClick={startScanner} className="w-full sm:w-auto mb-2">
+                <Scan className="h-4 w-4 mr-2" /> Start Scanner
+              </Button>
+            )}
+            
+            <p className={`mt-2 text-sm ${isScanning ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+              {isScanning 
+                ? "Position the QR code within the box"
+                : "Scan any QR code on garment tags or displays"
+              }
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {isScanning && (
+        <div className="w-full max-w-md p-4 bg-gray-100 rounded-lg">
+          <h3 className="font-medium mb-2">Scanning Tips:</h3>
+          <ul className="text-sm space-y-1 text-gray-600">
+            <li>• Ensure good lighting for better results</li>
+            <li>• Hold your device steady</li>
+            <li>• Position the QR code within the dashed box</li>
+            <li>• Make sure the entire QR code is visible</li>
+          </ul>
         </div>
-        
-        {isScanning ? (
-          <Button onClick={stopScanner} variant="outline" className="gap-2">
-            <CameraOff className="h-4 w-4" /> Stop Scanner
-          </Button>
-        ) : (
-          <Button onClick={startScanner} className="gap-2">
-            <Scan className="h-4 w-4" /> Start Scanner
-          </Button>
-        )}
-        
-        <p className="mt-4 text-sm text-muted-foreground text-center">
-          Align the QR code within the frame to scan
-        </p>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 };
 
