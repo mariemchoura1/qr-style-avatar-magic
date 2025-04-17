@@ -5,17 +5,18 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Scan, Camera, CameraOff } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const QRScanner = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
   
+  // Clean up when component unmounts
   useEffect(() => {
-    // Clean up when component unmounts
     return () => {
       if (isScanning) {
         stopScanner();
@@ -23,6 +24,7 @@ const QRScanner = () => {
     };
   }, [isScanning]);
   
+  // Function to start the QR scanner
   const startScanner = async () => {
     try {
       setCameraError(null);
@@ -33,6 +35,7 @@ const QRScanner = () => {
         throw new Error("Your browser doesn't support camera access");
       }
       
+      // Request camera access
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'environment',
@@ -43,50 +46,75 @@ const QRScanner = () => {
       
       console.log("Camera stream obtained:", stream);
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        console.log("Setting video source");
-        
-        // Make sure video plays with a promise handler
-        videoRef.current.onloadedmetadata = () => {
-          console.log("Video metadata loaded");
+      // Check if video ref is available
+      if (!videoRef.current) {
+        console.error("Video reference is null - waiting for DOM to update");
+        // Give React a chance to update the DOM
+        setTimeout(() => {
           if (videoRef.current) {
-            videoRef.current.play()
-              .then(() => {
-                console.log("Video playing successfully");
-                setIsScanning(true);
-                setHasPermission(true);
-                
-                // Mock successful scan after a few seconds
-                setTimeout(() => {
-                  if (isScanning) {
-                    stopScanner();
-                    mockSuccessfulScan();
-                  }
-                }, 5000);
-              })
-              .catch(err => {
-                console.error("Error playing video:", err);
-                setCameraError("Failed to play camera feed: " + err.message);
-              });
+            attachStreamToVideo(stream);
+          } else {
+            throw new Error("Video element not available after waiting");
           }
-        };
+        }, 100);
       } else {
-        console.error("Video reference is null");
-        setCameraError("Video element not available");
+        attachStreamToVideo(stream);
       }
     } catch (error) {
-      console.error('Error accessing camera:', error);
-      setHasPermission(false);
-      setCameraError(error instanceof Error ? error.message : "Unknown camera error");
-      toast({
-        title: "Camera access failed",
-        description: "Please allow camera access to scan QR codes.",
-        variant: "destructive",
-      });
+      handleCameraError(error);
     }
   };
   
+  // Helper function to attach stream to video
+  const attachStreamToVideo = (stream: MediaStream) => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      console.log("Video element exists, setting source object");
+      
+      videoRef.current.onloadedmetadata = () => {
+        console.log("Video metadata loaded");
+        if (videoRef.current) {
+          // Use play().catch to properly handle autoplay restrictions
+          videoRef.current.play()
+            .then(() => {
+              console.log("Video playing successfully");
+              setIsScanning(true);
+              setHasPermission(true);
+              
+              // Mock successful scan after a few seconds
+              setTimeout(() => {
+                if (isScanning) {
+                  stopScanner();
+                  mockSuccessfulScan();
+                }
+              }, 5000);
+            })
+            .catch(err => {
+              console.error("Error playing video:", err);
+              setCameraError("Failed to play camera feed: " + err.message);
+            });
+        }
+      };
+    } else {
+      setCameraError("Video element not available");
+      console.error("Video reference is still null after attempting to set stream");
+    }
+  };
+  
+  // Helper function to handle camera errors
+  const handleCameraError = (error: unknown) => {
+    console.error('Error accessing camera:', error);
+    setHasPermission(false);
+    const errorMessage = error instanceof Error ? error.message : "Unknown camera error";
+    setCameraError(errorMessage);
+    toast({
+      title: "Camera access failed",
+      description: "Please allow camera access to scan QR codes.",
+      variant: "destructive",
+    });
+  };
+  
+  // Function to stop the scanner
   const stopScanner = () => {
     console.log("Stopping scanner");
     if (videoRef.current && videoRef.current.srcObject) {
@@ -100,6 +128,7 @@ const QRScanner = () => {
     }
   };
   
+  // Mock function for successful QR scan
   const mockSuccessfulScan = () => {
     toast({
       title: "QR Code Detected!",
@@ -209,6 +238,18 @@ const QRScanner = () => {
             <li>• Make sure the entire QR code is visible</li>
           </ul>
         </div>
+      )}
+      
+      {cameraError && (
+        <Alert variant="destructive" className="w-full max-w-md mt-4">
+          <AlertTitle>Camera Error</AlertTitle>
+          <AlertDescription>
+            {cameraError}
+            <div className="mt-2 text-sm">
+              Please make sure your browser has camera permissions enabled and try again.
+            </div>
+          </AlertDescription>
+        </Alert>
       )}
     </div>
   );
