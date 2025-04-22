@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import Navbar from '../components/layout/Navbar';
-import { CameraIcon, ScanIcon, ShirtIcon, UserIcon } from 'lucide-react';
+import { CameraIcon, ScanIcon, ShirtIcon } from 'lucide-react';
 
 const Index = () => {
   return (

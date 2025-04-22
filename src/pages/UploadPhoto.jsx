@@ -6,7 +6,7 @@ import PhotoUpload from '../components/upload/PhotoUpload';
 
 const UploadPhoto = () => {
   const navigate = useNavigate();
-  const [garment, setGarment] = useState<any>(null);
+  const [garment, setGarment] = useState(null);
 
   useEffect(() => {
     // Check if user is logged in

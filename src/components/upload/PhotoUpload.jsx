@@ -7,13 +7,13 @@ import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 
 const PhotoUpload = () => {
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
@@ -27,7 +27,7 @@ const PhotoUpload = () => {
       
       const reader = new FileReader();
       reader.onload = (event) => {
-        setSelectedPhoto(event.target?.result as string);
+        setSelectedPhoto(event.target?.result);
       };
       reader.readAsDataURL(file);
     }
